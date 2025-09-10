@@ -10,12 +10,19 @@ using Printf
 
 function run_gwas_tools(plink2, syngeno_prefix, synpheno_prefix, trait_idx, covar, outdir)
 	@info  "Create plink phenotype file"
+	# for some reason, the file name is wrong, it carries an additional "-<number>", therefore we remove it and the filename is valid again
+	# this only applies to the pheno filename, the geno filename needs this additional number 	
+	synpheno_prefix_removed = replace(synpheno_prefix, r"-\d+" => "")
 	fam = CSV.File(syngeno_prefix * ".fam", normalizenames=true, header = 0) |> DataFrame
-	pheno = CSV.File(synpheno_prefix * ".pheno" * string(trait_idx), normalizenames=true) |> DataFrame
-	fam[!,"Sample"] = string.(fam[:,1], "_",fam[:,2])
+	pheno = CSV.File(synpheno_prefix_removed * ".pheno" * string(trait_idx), normalizenames=true) |> DataFrame
+	# composed of iid and fid 
+	#fam[!,"Sample"] = string.(fam[:,1], "_",fam[:,2])
+	# just take the iid to join fam and pheno
+	fam[!,"Sample"] = string.(fam[:,1])
 	
-	PhenoFam = leftjoin(fam, pheno, on = :Sample)
-	PhenoFam = PhenoFam[:, ["Column1","Column2","Column3","Column4","Column5","Phenotype_liability_"]]
+	PhenoFam = outerjoin(fam, pheno, on = :Sample)
+	PhenoFam = PhenoFam[:, ["Column1","Column2","Column3", "Column4", "Column5", "Phenotype_liability_"]]
+
 	syngeno_prefix_phe_trait_idx = @sprintf("%s.phe%i", synpheno_prefix, trait_idx)
 	CSV.write(syngeno_prefix_phe_trait_idx, DataFrame(PhenoFam), delim = "\t", header = false)
 	
@@ -25,9 +32,15 @@ function run_gwas_tools(plink2, syngeno_prefix, synpheno_prefix, trait_idx, cova
 	run(`$plink2 --bed $syngeno_prefix_bed --bim $syngeno_prefix_bim --fam $syngeno_prefix_phe_trait_idx --glm hide-covar --covar $covar --ci 0.95 --out $outdir`)
 
 	@info  "Create summary statistics"
-	GWASout = CSV.File( outdir * ".PHENO1.glm.linear", normalizenames=true) |> DataFrame
-	rename!(GWASout,[:CHR, :BP, :SNP, :A2, :A1, :A1_dup, :TEST, :NMISS, :BETA, :SE, :L95, :U95, :STAT, :P, :ERRCODE])
-	select!(GWASout, Not(:A1_dup))
+	# .PHENO1.glm.linear 
+	GWASout = CSV.File("data/outputs/test/evaluation/test_chr-1.trait1.PHENO1.glm.linear", normalizenames=true) |> DataFrame
+	#CHROM	POS	ID	REF	ALT	PROVISIONAL_REF?	A1	OMITTED	A1_FREQ	TEST	OBS_CT	BETA	SE	L95	U95	T_STAT	P	ERRCODE
+	# added OMMITED and FRQ, which were missing in the original code, but we don't need them, so we drop them too
+	rename!(GWASout,
+		[:CHR, :BP, :SNP, :A2, :A1, :A1_dup, :A1_again, :OMITTED, :FRQ, :TEST, :NMISS,
+		:BETA, :SE, :L95, :U95, :STAT, :P, :ERRCODE]
+	)
+	select!(GWASout, Not(:A1_dup, :A1_again, :OMITTED, :FRQ)) 
 
 	CSV.write(outdir * ".sumstat", DataFrame(GWASout), delim = "\t")
 end

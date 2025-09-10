@@ -9,6 +9,7 @@ include("metrics/eval_ld_decay.jl")
 include("metrics/eval_maf.jl")
 include("metrics/eval_pca.jl")
 include("metrics/eval_gwas.jl")
+ 
 
 function run_kinship_evaluation(ibsfile_real, ibsfile_synt, ibsfile_cross)
     run_kinship(ibsfile_real, ibsfile_synt, ibsfile_cross)
@@ -44,6 +45,15 @@ end
 
 function run_gwas_evaluation(ntraits, plink2, covar, synt_data_prefix, eval_dir)
     run_gwas(ntraits, plink2, covar, synt_data_prefix, eval_dir)
+end
+
+
+function run_mia_evaluation(orig_prefix, gen_prefix, out_dir, balancing, pca_components, train_fraction, shuffle, random_state)
+    @info "Running MIA (Python)"
+    py_script = joinpath(@__DIR__, "metrics", "eval_mia.py")
+    println(`python3 $py_script --orig_prefix $orig_prefix --gen_prefix $gen_prefix --out_dir $out_dir --balancing $balancing --pca_components $pca_components --train_fraction $train_fraction --shuffle $shuffle --random_state $random_state`)
+    
+    run(`python3 $py_script --orig_prefix $orig_prefix --gen_prefix $gen_prefix --out_dir $out_dir --balancing $balancing --pca_components $pca_components --train_fraction $train_fraction --shuffle $shuffle --random_state $random_state`)
 end
 
 
@@ -121,39 +131,100 @@ end
 """Executes evaluation for the metrics specified in the configuration file
 """
 function run_pipeline(options, chromosome, superpopulation, metrics)
-    compute_chromosome = chromosome=="all" ? 1 : chromosome
-    filepaths = parse_filepaths(options, compute_chromosome, superpopulation)
-    genomic_metadata = parse_genomic_metadata(options, superpopulation, filepaths)
+    # I restructured this function; starting point was the error in (now) line 133
+    # if the the chromosome was set to all, previuosly it was then updated to 1 and the analysiswas only done for that chromosome
+    if chromosome == "all"
+        for compute_chromosome in 1:22
+            filepaths = parse_filepaths(options, compute_chromosome, superpopulation)
+            genomic_metadata = parse_genomic_metadata(options, superpopulation, filepaths)
 
-    reffile_prefix, nsamples_ref = create_reference_dataset(filepaths.vcf_input_processed, filepaths.popfile_processed, genomic_metadata.population_weights, filepaths.plink, filepaths.reference_dir, compute_chromosome)
-    synfile_prefix = chromosome=="all" ? filepaths.synthetic_data_traw_prefix : filepaths.synthetic_data_prefix
+            reffile_prefix, nsamples_ref = create_reference_dataset(filepaths.vcf_input_processed, filepaths.popfile_processed, genomic_metadata.population_weights, filepaths.plink, filepaths.reference_dir, compute_chromosome)
+            # this does not work, beacuse synthetic_data_traw_prefix does not exist and it is not documented anywhere in the github. 
+            # synfile_prefix = chromosome=="all" ? filepaths.synthetic_data_traw_prefix : filepaths.synthetic_data_prefix
+            synfile_prefix =  filepaths.synthetic_data_prefix
 
-    external_files = run_external_tools(metrics, reffile_prefix, synfile_prefix, filepaths)
+            external_files = run_external_tools(metrics, reffile_prefix, synfile_prefix, filepaths)
 
-    if metrics["aats"]
-        run_aats_evaluation(external_files["cross_ibsfile"])
+            if metrics["aats"]
+                run_aats_evaluation(external_files["cross_ibsfile"])
+            end
+            if metrics["kinship"]
+                run_kinship_evaluation(external_files["real_ibsfile"], external_files["syn_ibsfile"], external_files["cross_ibsfile"])
+            end
+            if metrics["ld_corr"]
+                run_ld_corr_evaluation(reffile_prefix, synfile_prefix, filepaths.evaluation_output, filepaths.plink)
+            end
+            if metrics["ld_decay"]
+                bp_to_cm_map = create_bp_cm_ref(filepaths.genetic_distfile)
+                run_ld_decay_evaluation(synfile_prefix, reffile_prefix, filepaths.plink, filepaths.mapthin, filepaths.evaluation_output, bp_to_cm_map, compute_chromosome)
+            end
+            if metrics["maf"]
+                run_maf_evaluation(external_files["real_maffile"],  external_files["syn_maffile"])
+            end
+            if metrics["pca"]
+                run_pca_evaluation(
+                    external_files["real_pcafile"], external_files["syn_pcafile"], external_files["pcaproj_file"],
+                    reffile_prefix, synfile_prefix, filepaths.evaluation_output)
+            end
+            if metrics["mia"]
+                mia_cfg = haskey(options["evaluation"], "mia") ? options["evaluation"]["mia"] : Dict{String,Any}()
+                balancing = haskey(mia_cfg, "balancing") ? mia_cfg["balancing"] : "undersample"
+                pca_components = haskey(mia_cfg, "pca_components") ? mia_cfg["pca_components"] : 20
+                train_fraction = haskey(mia_cfg, "train_fraction") ? mia_cfg["train_fraction"] : 0.7
+                shuffle = haskey(mia_cfg, "shuffle") ? mia_cfg["shuffle"] : true
+                out_dir = filepaths.evaluation_output
+                random_state = options["global_parameters"]["random_seed"]
+                run_mia_evaluation(reffile_prefix, synfile_prefix, out_dir, balancing, pca_components, train_fraction, shuffle, random_state)
+            end
+            if metrics["gwas"]
+                run_gwas_evaluation(options["phenotype_data"]["nTrait"], filepaths.plink2, @sprintf("%s.eigenvec", external_files["syn_pcafile"]), synfile_prefix, filepaths.evaluation_output)
+            end
+        end
+    else
+        filepaths = parse_filepaths(options, chromosome, superpopulation)
+        genomic_metadata = parse_genomic_metadata(options, superpopulation, filepaths)
+
+        reffile_prefix, nsamples_ref = create_reference_dataset(filepaths.vcf_input_processed, filepaths.popfile_processed, genomic_metadata.population_weights, filepaths.plink, filepaths.reference_dir, chromosome)
+        synfile_prefix =  filepaths.synthetic_data_prefix
+
+        external_files = run_external_tools(metrics, reffile_prefix, synfile_prefix, filepaths)
+
+        if metrics["aats"]
+            run_aats_evaluation(external_files["cross_ibsfile"])
+        end
+        if metrics["kinship"]
+            run_kinship_evaluation(external_files["real_ibsfile"], external_files["syn_ibsfile"], external_files["cross_ibsfile"])
+        end
+        if metrics["ld_corr"]
+            run_ld_corr_evaluation(reffile_prefix, synfile_prefix, filepaths.evaluation_output, filepaths.plink)
+        end
+        if metrics["ld_decay"]
+            bp_to_cm_map = create_bp_cm_ref(filepaths.genetic_distfile)
+            run_ld_decay_evaluation(synfile_prefix, reffile_prefix, filepaths.plink, filepaths.mapthin, filepaths.evaluation_output, bp_to_cm_map, chromosome)
+        end
+        if metrics["maf"]
+            run_maf_evaluation(external_files["real_maffile"],  external_files["syn_maffile"])
+        end
+        if metrics["pca"]
+            run_pca_evaluation(
+                external_files["real_pcafile"], external_files["syn_pcafile"], external_files["pcaproj_file"],
+                reffile_prefix, synfile_prefix, filepaths.evaluation_output)
+        end
+        if metrics["mia"]
+            mia_cfg = haskey(options["evaluation"], "mia") ? options["evaluation"]["mia"] : Dict{String,Any}()
+            balancing = haskey(mia_cfg, "balancing") ? mia_cfg["balancing"] : "undersample"
+            pca_components = haskey(mia_cfg, "pca_components") ? mia_cfg["pca_components"] : 20
+            train_fraction = haskey(mia_cfg, "train_fraction") ? mia_cfg["train_fraction"] : 0.7
+            shuffle = haskey(mia_cfg, "shuffle") ? mia_cfg["shuffle"] : true
+            out_dir = filepaths.evaluation_output
+            random_state = options["global_parameters"]["random_seed"]
+            run_mia_evaluation(reffile_prefix, synfile_prefix, out_dir, balancing, pca_components, train_fraction, shuffle, random_state)
+        end
+        if metrics["gwas"]
+            run_gwas_evaluation(options["phenotype_data"]["nTrait"], filepaths.plink2, @sprintf("%s.eigenvec", external_files["syn_pcafile"]), synfile_prefix, filepaths.evaluation_output)
+        end
     end
-    if metrics["kinship"]
-        run_kinship_evaluation(external_files["real_ibsfile"], external_files["syn_ibsfile"], external_files["cross_ibsfile"])
-    end
-    if metrics["ld_corr"]
-        run_ld_corr_evaluation(reffile_prefix, synfile_prefix, filepaths.evaluation_output, filepaths.plink)
-    end
-    if metrics["ld_decay"]
-        bp_to_cm_map = create_bp_cm_ref(filepaths.genetic_distfile)
-        run_ld_decay_evaluation(synfile_prefix, reffile_prefix, filepaths.plink, filepaths.mapthin, filepaths.evaluation_output, bp_to_cm_map, chromosome)
-    end
-    if metrics["maf"]
-        run_maf_evaluation(external_files["real_maffile"],  external_files["syn_maffile"])
-    end
-    if metrics["pca"]
-        run_pca_evaluation(
-            external_files["real_pcafile"], external_files["syn_pcafile"], external_files["pcaproj_file"],
-            reffile_prefix, synfile_prefix, filepaths.evaluation_output)
-    end
-    if metrics["gwas"]
-        run_gwas_evaluation(options["phenotype_data"]["nTrait"], filepaths.plink2, @sprintf("%s.eigenvec", external_files["syn_pcafile"]), synfile_prefix, filepaths.evaluation_output)
-    end
+
 end
 
 
