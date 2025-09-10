@@ -25,8 +25,8 @@ function run_ld_corr_evaluation(real_data_prefix, synt_data_prefix, eval_dir, pl
 end
 
 
-function run_ld_decay_evaluation(synt_data_prefix, real_data_prefix, plink_path, mapthin_path, eval_dir, bp_to_cm_map)
-    run_ld_decay(synt_data_prefix, real_data_prefix, plink_path, mapthin_path, eval_dir, bp_to_cm_map)
+function run_ld_decay_evaluation(synt_data_prefix, real_data_prefix, plink_path, mapthin_path, eval_dir, bp_to_cm_map, chromosome)
+    run_ld_decay(synt_data_prefix, real_data_prefix, plink_path, mapthin_path, eval_dir, bp_to_cm_map, chromosome)
 end
 
 
@@ -141,7 +141,7 @@ function run_pipeline(options, chromosome, superpopulation, metrics)
     end
     if metrics["ld_decay"]
         bp_to_cm_map = create_bp_cm_ref(filepaths.genetic_distfile)
-        run_ld_decay_evaluation(synfile_prefix, reffile_prefix, filepaths.plink, filepaths.mapthin, filepaths.evaluation_output, bp_to_cm_map)
+        run_ld_decay_evaluation(synfile_prefix, reffile_prefix, filepaths.plink, filepaths.mapthin, filepaths.evaluation_output, bp_to_cm_map, chromosome)
     end
     if metrics["maf"]
         run_maf_evaluation(external_files["real_maffile"],  external_files["syn_maffile"])
