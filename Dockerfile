@@ -96,14 +96,16 @@ ENV MAPTHIN_PATH "$TOOLS_DIR/mapthin"
 # Add tools to PATH
 ENV PATH $PLINK_PATH:$PLINK2_PATH:$KING_PATH:$VCFTOOLS_PATH/bin:$BCFTOOLS_PATH/bin:$MAPTHIN_PATH:$PATH
 
-# Setup compression tools
+# Setup compression tools & fonts
 RUN set -eux; \
     apt-get update; \
 	apt-get install -y --no-install-recommends \
         unzip \
         git \
         autoconf automake build-essential pkg-config zlib1g-dev cmake \
-        libbz2-dev liblzma-dev
+        libbz2-dev liblzma-dev \
+		fonts-dejavu-core fonts-liberation libpango1.0-0 \
+		fontconfig
 
 RUN set -eux; \
 # Setup tools directory
@@ -182,6 +184,7 @@ RUN set -eux; \
     rm -rf $DOWNLOAD_DIR
 
 
+
 # ************************* Add INTERVENE scripts *********************************
 WORKDIR /opt/intervene
 ENV SCRIPT_DIR "/opt/intervene/scripts"
@@ -216,6 +219,29 @@ ENV PATH $PHENO_BIN_PATH:$PATH
 RUN set -eux; \
     cd algorithms/phenotype; \
 	gcc Main.c Support.c -o $PHENO_BIN_PATH/phenoalg -L. -lm -lgsl -fPIC -lblas -lplinkio
+
+
+# ************************* Python for MAI (evaluation) *************************
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        python3 \
+        python3-pip \
+    ; \
+    rm -rf /var/lib/apt/lists/*
+
+# Python dependencies for MAI
+RUN set -eux; \
+    pip3 install --no-cache-dir \
+        numpy \
+        scipy \
+        pandas \
+        scikit-learn \
+        imbalanced-learn \
+        matplotlib \
+        pysnptools \
+        seaborn \
+        bed-reader
 
 # Setup path for commands
 ENV PATH "$SCRIPT_DIR/commands":$PATH
