@@ -32,8 +32,7 @@ function run_gwas_tools(plink2, syngeno_prefix, synpheno_prefix, trait_idx, cova
 	run(`$plink2 --bed $syngeno_prefix_bed --bim $syngeno_prefix_bim --fam $syngeno_prefix_phe_trait_idx --glm hide-covar --covar $covar --ci 0.95 --out $outdir`)
 
 	@info  "Create summary statistics"
-	# .PHENO1.glm.linear 
-	GWASout = CSV.File("data/outputs/test/evaluation/test_chr-1.trait1.PHENO1.glm.linear", normalizenames=true) |> DataFrame
+	GWASout = CSV.File( outdir * ".PHENO1.glm.linear", normalizenames=true) |> DataFrame
 	#CHROM	POS	ID	REF	ALT	PROVISIONAL_REF?	A1	OMITTED	A1_FREQ	TEST	OBS_CT	BETA	SE	L95	U95	T_STAT	P	ERRCODE
 	# added OMMITED and FRQ, which were missing in the original code, but we don't need them, so we drop them too
 	rename!(GWASout,
