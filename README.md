@@ -150,6 +150,13 @@ singularity exec --bind data/:/data/ containers/intervene-synthetic-data_latest.
 
 This will store visualisations in the `data/outputs/test/evaluation` directory and print results for quantitative metrics. See our manuscript for details about the evaluation workflow.
 
+7. **Convert the generated genotypes from the PLINK format to the VCF format using the `convert` command:**
+
+```
+singularity exec --bind data/:/data/ containers/intervene-synthetic-data_latest.sif convert data/config.yaml
+```
+This will convert the generated PLINK filese to the VCF format for the specified chromosome(s) in the 
+
 Now that you understand the basics, you can read about [how to customise your synthetic datasets](#customising-your-synthetic-datasets). You may also be interested in [how to generate very large datasets](#large-scale-synthetic-data-generation).
 
 
@@ -282,9 +289,9 @@ Parameters for phenotype data generation:
 | b | Float | Suggested value is -1 |
 | c | Float | Suggested value is 0.5 |
 | nComponent | Integer | Number of Gaussian mixture components |
-| ProportionGeno | Comma-separated list of floats | The observed causal SNP heritability in each population, each trait. Flatten nPop * nTrait matrix, entries separated by comma |
-| ProportionCovar | Comma-separated list of floats| The observed proportion of variance contributed by the covariate (input in SampleList file) in each population, each trait. Flatten nPop * nTrait matrix, entries separated by comma.|
-| Prevalence | Comma-separated list of floats | Disease prevalence in each population, each trait. Flatten nPop * nTrait matrix, entries separated by comma. If prevalence is specified, output will include a column for binary case/control statues.|
+| ProportionGeno | Comma-separated list of floats | The observed causal SNP heritability in each population, each trait. Flatten **nPop * nTrait matrix**, entries separated by comma |
+| ProportionCovar | Comma-separated list of floats| The observed proportion of variance contributed by the covariate (input in SampleList file) in each population, each trait. Flatten **nPop * nTrait matrix**, entries separated by comma.|
+| Prevalence | Comma-separated list of floats | Disease prevalence in each population, each trait. Flatten **nPop * nTrait matrix**, entries separated by comma. If prevalence is specified, output will include a column for binary case/control statues.|
 | TraitCorr | Comma-separated list of floats | A flattened correlation matrix for traits genetic correlation (symmetric positive definite). nTrait x nTrait entries separated by comma. |
 | PopulationCorr | Comma-separated list of floats |A flattened correlation matrix for population genetic correlation (symmetric positive definite). nPop x nPop entries separated by comma. |
 | CompWeight | Comma-separated list of floats | Gaussian mixture component weights |
@@ -318,6 +325,7 @@ You can enable/disable different types of metrics by setting `true`/`false` valu
 | `maf` | `true`/`false` | Minor allele frequency divergences | :heavy_check_mark: | |
 | `pca` | `true`/`false` | Principal components analysis of population structure | :heavy_check_mark: | |
 | `gwas` | `true`/`false` | Run GWAS and generate manhattan and qqplot | :heavy_check_mark: | :heavy_check_mark: |
+| `mia` | `true`/`false` | Run a Membership Inference Attack (mia) and generate a confusion matrix, precision-recall plot and a ROC curve. See the [evaluation README](evaluation/README.md#parameters-for-mia) for  a detailed parameter description. | :heavy_check_mark: | |
 
 The evaluation metrics are printed to standard output and plots are stored at `output_dir/evaluation`, where `output_dir` is specified in the `config.yaml` file. 
 
