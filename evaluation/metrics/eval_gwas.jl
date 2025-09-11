@@ -30,7 +30,7 @@ function run_gwas_tools(plink2, syngeno_prefix, synpheno_prefix, trait_idx, cova
 	syngeno_prefix_bed = @sprintf("%s.bed", syngeno_prefix)
 	syngeno_prefix_bim = @sprintf("%s.bim", syngeno_prefix)
 	run(`$plink2 --bed $syngeno_prefix_bed --bim $syngeno_prefix_bim --fam $syngeno_prefix_phe_trait_idx --glm hide-covar --covar $covar --ci 0.95 --out $outdir`)
-
+	
 	@info  "Create summary statistics"
 	GWASout = CSV.File( outdir * ".PHENO1.glm.linear", normalizenames=true) |> DataFrame
 	#CHROM	POS	ID	REF	ALT	PROVISIONAL_REF?	A1	OMITTED	A1_FREQ	TEST	OBS_CT	BETA	SE	L95	U95	T_STAT	P	ERRCODE
@@ -64,10 +64,35 @@ end
 
 """Run GWAS for each phenotypic trait and plot results
 """
-function run_gwas(ntraits, plink2, covar, synt_data_prefix, eval_dir)
+function run_gwas(ntraits, plink2, covar, synt_data_prefix, eval_dir, all_chromosomes)
 	for trait_idx in 1:ntraits
-		outdir = @sprintf("%s.trait%i", eval_dir, trait_idx)
-		run_gwas_tools(plink2, synt_data_prefix, synt_data_prefix, trait_idx, covar, outdir)
-		plot_gwas(outdir, outdir)
+		if all_chromosomes == "all"
+			# Aggregate GWAS results across all chromosomes for a single plot
+			combined_df = DataFrame()
+			# Ensure we don't double-append a chromosome suffix like "-1-1"
+			base_prefix = replace(synt_data_prefix, r"-\d+$" => "")
+			for chr in 1:22
+				# Genotype prefix requires the "-<number>" suffix; phenotype prefix will have it removed internally
+				syngeno_prefix_chr = @sprintf("%s-%d", base_prefix, chr)
+				synpheno_prefix_chr = syngeno_prefix_chr
+				# Ensure output path reflects the correct chromosome and avoid extra ".chr<j>" suffix
+				eval_dir_chr = replace(eval_dir, r"-\d+$" => @sprintf("-%d", chr))
+				outdir_chr = @sprintf("%s.trait%i", eval_dir_chr, trait_idx)
+				covar_chr = isa(covar, Vector{String}) ? covar[chr] : covar
+				run_gwas_tools(plink2, syngeno_prefix_chr, synpheno_prefix_chr, trait_idx, covar_chr, outdir_chr)
+				# Read per-chromosome summary stats and append
+				chr_sum = CSV.File(outdir_chr * ".sumstat", normalizenames=true) |> DataFrame
+				combined_df = isempty(combined_df) ? chr_sum : vcat(combined_df, chr_sum; cols = :union)
+			end
+			# Write combined summary stats and plot once across all chromosomes
+			outdir_all = @sprintf("%s.trait%i.all", eval_dir, trait_idx)
+			CSV.write(outdir_all * ".sumstat", DataFrame(combined_df), delim = "\t")
+			plot_gwas(outdir_all, outdir_all)
+		else
+			# Single chromosome or pre-merged input
+			outdir = @sprintf("%s.trait%i", eval_dir, trait_idx)
+			run_gwas_tools(plink2, synt_data_prefix, synt_data_prefix, trait_idx, covar, outdir)
+			plot_gwas(outdir, outdir)
+		end
 	end
 end

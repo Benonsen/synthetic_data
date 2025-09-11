@@ -43,8 +43,8 @@ function run_pca_evaluation(real_data_pca_prefix, synt_data_pca_prefix, pcaproj_
 end
 
 
-function run_gwas_evaluation(ntraits, plink2, covar, synt_data_prefix, eval_dir)
-    run_gwas(ntraits, plink2, covar, synt_data_prefix, eval_dir)
+function run_gwas_evaluation(ntraits, plink2, covar, synt_data_prefix, eval_dir, chromosome)
+    run_gwas(ntraits, plink2, covar, synt_data_prefix, eval_dir, chromosome)
 end
 
 
@@ -163,7 +163,7 @@ function run_pipeline(options, chromosome, superpopulation, metrics, filepaths, 
         run_mia_evaluation(reffile_prefix, synfile_prefix, out_dir, balancing, pca_components, train_fraction, shuffle, random_state)
     end
     if metrics["gwas"]
-        run_gwas_evaluation(options["phenotype_data"]["nTrait"], filepaths.plink2, @sprintf("%s.eigenvec", external_files["syn_pcafile"]), synfile_prefix, filepaths.evaluation_output)
+        run_gwas_evaluation(options["phenotype_data"]["nTrait"], filepaths.plink2, @sprintf("%s.eigenvec", external_files["syn_pcafile"]), synfile_prefix, filepaths.evaluation_output, chromosome)
     end
     
 
@@ -183,17 +183,37 @@ function run_evaluation(options)
     superpopulation = parse_superpopulation(options)
 
     metrics = options["evaluation"]["metrics"]
-
+    gwas = metrics["gwas"] 
     if chromosome == "all"      
+        covar_paths = String[]
         for chromosome_i in 1:22
+            # Prepare per-chromosome filepaths and metadata
             filepaths = parse_filepaths(options, chromosome_i, superpopulation)
             genomic_metadata = parse_genomic_metadata(options, superpopulation, filepaths)
 
             reffile_prefix, nsamples_ref = create_reference_dataset(filepaths.vcf_input_processed, filepaths.popfile_processed, genomic_metadata.population_weights, filepaths.plink, filepaths.reference_dir, chromosome_i)
             synfile_prefix =  filepaths.synthetic_data_prefix
 
-            external_files = run_external_tools(metrics, reffile_prefix, synfile_prefix, filepaths) 
-            run_pipeline(options, chromosome_i, superpopulation, metrics, filepaths, genomic_metadata, reffile_prefix, nsamples_ref, synfile_prefix, external_files)
+            # Ensure PCA is computed per chromosome if GWAS is requested
+            local_metrics = copy(metrics)
+            local_metrics["gwas"] = false
+            if gwas
+                local_metrics["pca"] = true
+            end
+
+            external_files = run_external_tools(local_metrics, reffile_prefix, synfile_prefix, filepaths)
+            run_pipeline(options, chromosome_i, superpopulation, local_metrics, filepaths, genomic_metadata, reffile_prefix, nsamples_ref, synfile_prefix, external_files)
+
+            # Collect per-chromosome covariate path (PCA eigenvectors)
+            if gwas
+                push!(covar_paths, @sprintf("%s.eigenvec", external_files["syn_pcafile"]))
+            end
+        end
+        # If GWAS was originally requested, run it across all chromosomes now
+        if gwas
+            filepaths_all = parse_filepaths(options, 1, superpopulation)
+            synfile_prefix_all = filepaths_all.synthetic_data_prefix
+            run_gwas_evaluation(options["phenotype_data"]["nTrait"], filepaths_all.plink2, covar_paths, synfile_prefix_all, filepaths_all.evaluation_output, "all")
         end
     else
         filepaths = parse_filepaths(options, chromosome, superpopulation)
