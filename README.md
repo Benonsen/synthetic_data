@@ -327,7 +327,7 @@ You can enable/disable different types of metrics by setting `true`/`false` valu
 | `gwas` | `true`/`false` | Run GWAS and generate manhattan and qqplot | :heavy_check_mark: | :heavy_check_mark: |
 | `mia` | `true`/`false` | Run a Membership Inference Attack (mia) and generate a confusion matrix, precision-recall plot and a ROC curve. See the [evaluation README](evaluation/README.md#parameters-for-mia) for  a detailed parameter description. | :heavy_check_mark: | |
 
-The evaluation metrics are printed to standard output and plots are stored at `output_dir/evaluation`, where `output_dir` is specified in the `config.yaml` file. 
+The evaluation metrics are printed to standard output and plots are stored at `output_dir/evaluation`, where `output_dir` is specified in the `config.yaml` file. Note that if you run `gwas` evaluation on all chromosomes, it will create one plot with all the chromosomes, instead of creating one plot for each chromosoe and only displaying that chromosome.  
 
 ## Optimising model parameters using ABC
 
