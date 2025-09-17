@@ -101,7 +101,14 @@ For user-sepcified effects to be applied, please make sure to add below in the p
 ```
 CausalEffect  T
 ```
-Otherwise the effect size column in the ```CausalList``` will be ignored.
+Otherwise the effect size column in the ```CausalList``` will be ignored. 
+
+We created a script, which creates such a CausalList for a given GWASCatalog Association file, which can be downloaded directly on the website. To run the the program, use the following command: 
+```bash
+python3 create_causalList.py --input <file-from-GWASCatalog.tsv> --output <path/to/output/CausalList>
+```
+Note that this script uses the Ensembl-Api, so it might take some time if you process huge files. 
+
 **Note when user-sepcified effects are applied, trait and population genetic correlation will be disabled.** There will not be any population specific effect under user-sepcified effect option. 
 
 ## Adding interaction terms
