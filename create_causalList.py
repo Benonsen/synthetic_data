@@ -159,7 +159,6 @@ def rsids_to_variantids(rsids, batch_size=200):
             ref = mapping["allele_string"].split("/")[0]
             alt = mapping["allele_string"].split("/")[-1]
             results[rsid] = f"chr{chrom}:{pos}:{ref}:{alt}"
-        print(i)
     
     return results
 
