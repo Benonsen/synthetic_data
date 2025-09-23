@@ -126,7 +126,7 @@ def extract_snp_id(snp_str, snp_current_str=None):
     return None
 
 
-def rsids_to_variantids(rsids, batch_size=1000):
+def rsids_to_variantids(rsids, batch_size=200):
     """
     Convert rsIDs to variant IDs using Ensembl REST API batch queries.
     
@@ -158,7 +158,8 @@ def rsids_to_variantids(rsids, batch_size=1000):
             pos = mapping["start"]
             ref = mapping["allele_string"].split("/")[0]
             alt = mapping["allele_string"].split("/")[-1]
-            results[rsid] = f"chr:{chrom}:{pos}:{ref}:{alt}"
+            results[rsid] = f"chr{chrom}:{pos}:{ref}:{alt}"
+        print(i)
     
     return results
 
@@ -174,7 +175,7 @@ def process_gwas_catalog(input_file, output_file,
         df = pd.read_csv(input_file, sep='\t', low_memory=False)
         logger.info(f"Loaded {len(df)} entries from GWAS catalog")
         
-        
+        df = df[df['P-VALUE'] <= 1E-10]
         causal_variants = []
         processed_snps = set()
         
