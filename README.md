@@ -39,7 +39,7 @@ Steps 1-4 only need to be run once the first time you install HAPNEST. Step 5 de
 1. Download the Singularity container by running the following command:
 
 ```
-singularity pull docker://sophiewharrie/intervene-synthetic-data
+singularity pull docker://benonsen/synthetic-genetic-data
 ```
 
 2. Setup the directory structure illustrated below with the container you just downloaded and a copy of the `config.yaml` file from this repository:
@@ -91,7 +91,7 @@ The HAPNEST container is available at the link https://hub.docker.com/r/sophiewh
 Download the Singularity container by running the following command:
 
 ```
-singularity pull docker://sophiewharrie/intervene-synthetic-data
+singularity pull docker://benonsen/synthetic-genetic-data
 ```
 
 Alternatively, you can run this software without a container by manually installing the software dependencies. If you prefer this approach, you can view the list of required dependencies in the `Dockerfile` of this repository. 
