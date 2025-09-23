@@ -58,54 +58,48 @@ function create_reference_table(metadata, start_haplotype, end_haplotype, batchs
     num_haps = end_haplotype - start_haplotype + 1
     expected = 2 * batchsize
     @assert num_haps == expected "Haplotype count mismatch: expected $expected, got $num_haps"
-
+    
     ref_df_samples = Vector{DataFrame}(undef, num_haps)
-
+    
     Threads.@threads for hap in start_haplotype:end_haplotype
+        # Create thread-local RNG
+        rng = Random.default_rng()
+        
         happop = metadata.population_groups[hap]
         pos = 1
-
-        # dataframe schema (typed columns)
         ref_df_hap = DataFrame(H=Int[], I=String[], S=Int[], E=Int[],
                                P=String[], Q=String[], T=Float64[])
-
+        
         while pos <= metadata.nvariants
-            # sample a population group for the segment
             weights_dict = metadata.population_weights[happop]
             @assert all(values(weights_dict) .>= 0) "Negative weights detected"
-            segpop = sample(collect(keys(weights_dict)), Weights(collect(values(weights_dict))))
-
-            # sample the segment distance
+            
+            segpop = sample(rng, collect(keys(weights_dict)), 
+                           Weights(collect(values(weights_dict))))
+            
             T = sample_T(metadata.population_Ns[segpop], metadata.population_Nes[segpop])
             L = sample_L(T, metadata.population_rhos[segpop])
-
-            # sample the haplotype to be copied
-            seghap = rand(metadata.haplotypes[segpop])
-
-            # update the start and end (variant) positions of the segment
+            
+            # Use thread-local RNG here too
+            seghap = rand(rng, metadata.haplotypes[segpop])
+            
             start_pos = pos
             end_pos = min(update_variant_position(pos, L, metadata.genetic_distances, metadata.nvariants),
                           metadata.nvariants)
-
             
             push!(ref_df_hap, (H=hap, I=seghap, S=start_pos, E=end_pos,
                                P=happop, Q=segpop, T=T))
-
             pos = end_pos + 1
         end
-
-        # write to the right slot
+        
         idx = hap - start_haplotype + 1
         @assert 1 <= idx <= num_haps
         ref_df_samples[idx] = ref_df_hap
-
     end
-
-    # concat results
+    
     ref_df = vcat(ref_df_samples...)
     return ref_df
 end
-
 
 """Adjusts the batch size if not a divisor of the number of samples
 """
