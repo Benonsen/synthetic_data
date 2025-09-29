@@ -77,8 +77,8 @@ function run_pca_tools(plink2, king, reffile_prefix, synfile_prefix, outdir)
     @info "Running external tools for PCA"
     reffile_out = @sprintf("%s.ref.pca", outdir)
     synfile_out = @sprintf("%s.syn.pca", outdir)
-    run(`$plink2 --bfile $reffile_prefix --freq counts --pca allele-wts --out $reffile_out`)
-    run(`$plink2 --bfile $synfile_prefix --freq counts --pca allele-wts --out $synfile_out`)
+    run(`$plink2 --bfile $reffile_prefix --freq counts --pca approx allele-wts --out $reffile_out`)
+    run(`$plink2 --bfile $synfile_prefix --freq counts --pca approx allele-wts --out $synfile_out`)
 
     # For PCA projection
     projfile_prefix = @sprintf("%s_proj", outdir)
