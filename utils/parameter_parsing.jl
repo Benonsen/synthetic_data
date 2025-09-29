@@ -124,7 +124,7 @@ function parse_filepaths(options, chromosome, superpopulation)
     optimisation_output = format_filepath(string(options["filepaths"]["general"]["output_dir"],"/optimisation/",options["filepaths"]["general"]["output_prefix"]), chromosome, superpopulation, true)
     reference_dir = format_filepath(string(options["filepaths"]["general"]["output_dir"],"/reference"), chromosome, superpopulation, false)
     prspipe_dir = format_filepath(string(options["filepaths"]["general"]["output_dir"],"/prspipe"), chromosome, superpopulation, false)
-    vcf_output_prefix = format_filepath(string(options["filepaths"]["general"]["output_dir"],"/vcf",options["filepaths"]["general"]["output_prefix"]), chromosome, superpopulation, true)
+    vcf_output_prefix = format_filepath(string(options["filepaths"]["general"]["output_dir"],"/vcf/",options["filepaths"]["general"]["output_prefix"]), chromosome, superpopulation, true)
     
     # check format of output prefix
     if !endswith(synthetic_data_prefix, @sprintf("-%s",chromosome))
