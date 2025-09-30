@@ -125,3 +125,28 @@ This folder contains multiple `sumstats` files: one for each trait and each chro
 
 * This path also includes all **Manhattan plots**, **QQ plots**, and intermediate results (`pca`, `glm.linear` files, etc.).
 
+
+If you want to generate data on you own and do not use my scripts, you can do the following: 
+Create a new directory and start clean and use the pull, init (to avoid this step, just copy my container) and fetch command to download the reference data. Make sure to put the `config.yaml` file in it. Alternatively to downloading you can also copy all the files from `/data/inputs/processed/1KG+HGDP` (you don't need the population specific folders; in those I stored only the CausalList Files (Causal SNPs) for the corresponding population). Then you can start generating genes with 
+  ```bash
+  singularity exec --bind data/:/data/ containers/synthetic-genetic-data_latest.sif generate_geno <number-of-threads> data/config.yaml
+  ```
+  and phenotypes: 
+  ```bash
+  singularity exec --bind data/:/data/ containers/synthetic-genetic-data_latest.sif generate_pheno data/config.yaml
+  ```
+  validate (set gwas to `true` in config.yaml to calculate summary statistics): 
+  ```bash
+  singularity exec --bind data/:/data/ containers/synthetic-genetic-data_latest.sif validate data/config.yaml
+  ```
+  and finally convert to vcf files:
+  ```bash
+  singularity exec --bind data/:/data/ containers/synthetic-genetic-data_latest.sif validate data/config.yaml
+  ```
+  The config.yaml file is rather self explenatory; the most important parameters are: 
+  - `chromosome`: which chromosome to you want to generate, or all
+  - `causal_list`: Path to the CausalList-files. They don't have any file specific ending, just a text file. The last character in the filename should be the trait it reffers to, so CausalList1 --> Trait1. If you want to use it, you need also to set `UseCausalList` to true
+  - nsamples: To change the sample size, note that you can use a default population structure or a custom one. 
+  - `nTrait`: number of traits you want to simulate. If you change this value, you also need to update the matrices (PropotionGeno and so on) as they are nTrait x nTrait or nPopulation x nTrait matrices. See the official README for more info. 
+
+
