@@ -77,13 +77,26 @@ function run_pca_tools(plink2, king, reffile_prefix, synfile_prefix, outdir)
     @info "Running external tools for PCA"
     reffile_out = @sprintf("%s.ref.pca", outdir)
     synfile_out = @sprintf("%s.syn.pca", outdir)
-    run(`$plink2 --bfile $reffile_prefix --freq counts --pca approx allele-wts --out $reffile_out`)
-    run(`$plink2 --bfile $synfile_prefix --freq counts --pca approx allele-wts --out $synfile_out`)
+    ref_snps_file = @sprintf("%s.ref", outdir)
+    syn_snps_file = @sprintf("%s.syn", outdir)
+
+    run(`plink2 --bfile $reffile_prefix --maf 0.05 --write-snplist --out $ref_snps_file`)
+    run(`plink2 --bfile $synfile_prefix --maf 0.05 --write-snplist --out $syn_snps_file`)
+
+    ref_snps = readlines(ref_snps_file * ".snplist")
+    syn_snps = readlines(syn_snps_file * ".snplist")
+    common   = intersect(ref_snps, syn_snps)
+
+    common_file_name = outdir * "common.snplist" 
+    write(common_file_name, join(common, "\n"))
+
+    run(`$plink2 --bfile $reffile_prefix --extract $common_file_name --pca approx allele-wts --freq counts --out $reffile_out`)
+    run(`$plink2 --bfile $synfile_prefix --extract $common_file_name --pca approx allele-wts --freq counts --out $synfile_out`)
 
     # For PCA projection
     projfile_prefix = @sprintf("%s_proj", outdir)
     projfile_out = @sprintf("%spc.txt", projfile_prefix)
-    run(`$king -b $reffile_prefix.bed,$synfile_prefix.bed --pca --projection --prefix $projfile_prefix`)
+    run(`$king -b $reffile_prefix.bed,$synfile_prefix.bed --maf 0.05 --pca --projection --prefix $projfile_prefix`)
 
     return reffile_out, synfile_out, projfile_out
 end
