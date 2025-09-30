@@ -12,6 +12,12 @@ Pull the container (Docker or Singularity) using this command:
 singularity pull docker://benonsen/synthetic-genetic-data
 ```
 
+If some singularity out of memory issues appear, set the cache and tmp dir before pulling the container.
+```bash
+export SINGULARITY_TMPDIR=<path-to-tmp>/tmp
+export SINGULARITY_CACHEDIR=<path-to-tmp>/tmp/cache
+```
+
 ---
 
 ## Step 2: Initialization
